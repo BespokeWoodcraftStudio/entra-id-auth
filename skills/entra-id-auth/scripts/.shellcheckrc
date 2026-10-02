@@ -1,0 +1,4 @@
+# The scripts source lib.sh from their own folder: follow it, so a check of
+# one file sees what lib.sh defines (the same as shellcheck -x).
+external-sources=true
+source-path=SCRIPTDIR

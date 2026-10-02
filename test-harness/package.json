@@ -1,0 +1,33 @@
+{
+  "name": "entra-id-auth-test-harness",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Fills copies of skills/entra-id-auth/templates with placeholder values and runs their tests, so CI proves the templates work without touching a real tenant, project or site.",
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
+  "scripts": {
+    "fill": "bash fill.sh",
+    "test": "bash fill.sh && vitest run && tsc -p .work/site-listed && tsc -p .work/entra-group && tsc -p .work/site-group && tsc -p .work/entra-listed && tsc -p .work/site-home",
+    "typecheck": "bash fill.sh && tsc -p .work/site-listed && tsc -p .work/entra-group && tsc -p .work/site-group && tsc -p .work/entra-listed && tsc -p .work/site-home",
+    "test:db": "bash db.sh"
+  },
+  "devDependencies": {
+    "@azure/identity": "^4.13.3",
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "better-auth": "1.7.6",
+    "dotenv": "^18.0.2",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.2",
+    "next": "~16.3.6",
+    "postgres": "^3.4.9",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.1",
+    "zod": "^4.5.4"
+  }
+}

@@ -1,0 +1,7 @@
+# A vulnerability never goes in a public issue: this link opens GitHub's
+# private report form (see SECURITY.md). Blank issues stay open for bugs.
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/BespokeWoodcraftStudio/entra-id-auth/security/advisories/new
+    about: Never put the details of a vulnerability in a public issue. This form reaches the maintainers privately.

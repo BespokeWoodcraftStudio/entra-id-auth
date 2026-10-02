@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Fake Vercel CLI for tests/scripts/run.sh. It never calls Vercel: every call
+# is logged to $VERCEL_STUB_LOG and answered with canned, made-up data. With
+# STUB_FORBID_WRITES=1 a write verb is logged as WRITE-ATTEMPT and refused
+# (exit 97).
+#
+# Knobs (environment):
+#   VERCEL_STUB_DB   yes | no   DATABASE_URL is already on the project (default no)
+#   VERCEL_STUB_PROJECT_DOMAINS  the linked project's own domains, space list, for
+#                    `vercel api /v9/projects/<id>/domains` (default: only
+#                    contoso-example.vercel.app). "unreadable": no JSON, as an older CLI
+#                    with no `vercel api` gives; "paged": a first page with more to come.
+#                    name!unverified, name!redirect, name!branch, name!env set that domain's kind.
+#                    `domains ls` lists the team's domains, so it shows portal.contoso.com
+#                    either way.
+set -euo pipefail
+
+ARGS="$*"
+[ -z "${VERCEL_STUB_LOG:-}" ] || printf 'vercel %s\n' "$ARGS" >> "$VERCEL_STUB_LOG"
+
+is_write() {
+  case "$ARGS" in
+    ""|"deploy"*|"--prod"*|"login"*|"logout"*|"link"*|"promote"*|"redeploy"*|"remove"*|"rm "*) return 0 ;;
+    "env add"*|"env rm"*|"env update"*|"env pull"*) return 0 ;;
+    "domains add"*|"domains rm"*|"domains move"*|"dns add"*|"dns rm"*) return 0 ;;
+    "integration"*|"install"*|"i "*|"project add"*|"project rm"*|"teams add"*|"teams invite"*) return 0 ;;
+  esac
+  return 1
+}
+if is_write; then
+  [ -z "${VERCEL_STUB_LOG:-}" ] || printf 'WRITE-ATTEMPT vercel %s\n' "$ARGS" >> "$VERCEL_STUB_LOG"
+  if [ "${STUB_FORBID_WRITES:-0}" = 1 ]; then echo "vercel stub: refused a write in a test" >&2; exit 97; fi
+  exit 0
+fi
+
+case "$ARGS" in
+  "whoami"*) printf 'contoso-dev\n' ;;
+  "teams ls"*|"teams list"*)
+    printf '  id                      Team name\n'
+    printf '  contoso-team            Contoso\n' ;;
+  "project ls"*|"projects ls"*) printf '  contoso-example   https://contoso-example.vercel.app\n' ;;
+  "domains ls"*) printf '  portal.contoso.com   contoso-team\n' ;;
+  "api /v9/projects/"*"/domains"*)
+    pid="${ARGS#api /v9/projects/}"; pid="${pid%%/*}"
+    case "$pid" in prj_contoso_example|contoso-example) ;; *) echo "Error: Project not found" >&2; exit 1 ;; esac
+    d="${VERCEL_STUB_PROJECT_DOMAINS-contoso-example.vercel.app}"
+    if [ "$d" = unreadable ]; then echo "Error: unknown command api" >&2; exit 1; fi
+    if [ "$d" = paged ]; then printf '{"domains":[{"name":"a.contoso.com","redirect":null,"gitBranch":null}],"pagination":{"count":1,"next":1790000000000,"prev":null}}\n'; exit 0; fi
+    printf '{"domains":['; sep=""
+    for n in $d; do
+      # name, or name!unverified, name!redirect, name!branch
+      kind="${n#*!}"; [ "$kind" = "$n" ] && kind=""; n="${n%%!*}"
+      red=null; br=null; ver=true
+      cenv=null
+      case "$kind" in unverified) ver=false ;; redirect) red='"portal.contoso.com"' ;; branch) br='"staging"' ;; env) cenv='"env_staging"' ;; esac
+      printf '%s{"name":"%s","apexName":"%s","redirect":%s,"gitBranch":%s,"customEnvironmentId":%s,"verified":%s}' "$sep" "$n" "$n" "$red" "$br" "$cenv" "$ver"; sep=","
+    done
+    printf '],"pagination":{"count":0,"next":null,"prev":null}}\n' ;;
+  "env ls"*)
+    printf '> Environment Variables found for contoso-team/contoso-example\n\n'
+    printf ' name                 value      environments\n'
+    if [ "${VERCEL_STUB_DB:-no}" = yes ]; then
+      printf ' DATABASE_URL         Encrypted  Production, Preview\n'
+    fi
+    printf ' NEXT_PUBLIC_APP_URL  Encrypted  Production\n' ;;
+  "--version"*|"-v"*) printf 'Vercel CLI 0.0.0-test\n' ;;
+  *) printf '\n' ;;
+esac
+exit 0

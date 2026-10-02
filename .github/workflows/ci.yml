@@ -1,0 +1,154 @@
+# Every job runs offline against stubs and placeholders: no tenant, Graph,
+# Vercel or website call, and no secret. Actions are pinned to a full commit
+# SHA (the tag is in the comment); Dependabot proposes updates weekly.
+# Two things Dependabot does not move, bumped by hand: the Claude Code CLI
+# version below (CLAUDE_CODE_VERSION), and the postgres service image tag.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate (plugin, marketplace, skill)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Install Claude Code (pinned, so a new CLI cannot turn the weekly run red on its own)
+        env:
+          CLAUDE_CODE_VERSION: "2.1.281"
+        run: npm i -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+      - name: Validate the marketplace and the plugin
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude
+        run: |
+          set -euo pipefail
+          mkdir -p "$CLAUDE_CONFIG_DIR"
+          claude plugin validate . --strict
+          claude plugin validate .claude-plugin/plugin.json --strict
+      - name: Check the skill's shape
+        run: bash .github/scripts/check-skill.sh
+
+  shell:
+    name: shell (bash -n, shellcheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: bash -n on every script
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          # The stubs have no .sh extension; they are the tests' oracle, so they are checked too.
+          files=(skills/entra-id-auth/scripts/*.sh tests/scripts/**/*.sh tests/scripts/stubs/* .github/scripts/*.sh test-harness/*.sh)
+          for f in "${files[@]}"; do
+            echo "bash -n $f"
+            bash -n "$f"
+          done
+      - name: shellcheck
+        run: |
+          set -euo pipefail
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq shellcheck
+          fi
+          shellcheck --version
+          shopt -s globstar nullglob
+          files=(skills/entra-id-auth/scripts/*.sh tests/scripts/**/*.sh tests/scripts/stubs/* .github/scripts/*.sh test-harness/*.sh)
+          shellcheck -x -P SCRIPTDIR "${files[@]}"
+
+  scripts-plan:
+    name: scripts-plan (every script in plan mode, against stubs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Run every script against stub az, vercel and gh
+        run: bash tests/scripts/run.sh
+
+  templates:
+    # locked: the versions in test-harness/package-lock.json (better-auth 1.7.6).
+    # 1.7.5: the other version setup accepts on an existing site.
+    # latest-in-range: the newest 1.7.x. Sites install exactly 1.7.6, so this is
+    # the early warning: a new patch is tested the week it ships, before the pin moves.
+    name: templates (${{ matrix.better-auth }}; unit, type and database tests)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        better-auth: [locked, "1.7.5", latest-in-range]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Install
+        working-directory: test-harness
+        run: |
+          set -euo pipefail
+          npm ci
+          case "${{ matrix.better-auth }}" in
+            latest-in-range) npm i --no-save "better-auth@>=1.7.5 <1.8.0" ;;
+            1.7.5) npm i --no-save better-auth@1.7.5 ;;
+          esac
+          echo "better-auth $(node -p "JSON.parse(require('fs').readFileSync('node_modules/better-auth/package.json','utf8')).version")"
+      - name: Unit tests and type check
+        working-directory: test-harness
+        run: npm test
+      - name: Database tests (the real Better Auth pipeline against Postgres)
+        working-directory: test-harness
+        env:
+          # A throwaway database on the runner; db.sh refuses any database not on this machine.
+          TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+        run: npm run test:db
+
+  leak:
+    name: leak (placeholder-only addresses and ids, no paths, owner name only where allowed; tree and history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Every commit, so the history check can read them all. On a pull
+          # request, the head commit itself, not GitHub's test merge commit.
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Leak check, the files
+        run: bash .github/scripts/leak-check.sh
+      - name: Leak check, every commit (files, messages, authors, committers)
+        run: bash .github/scripts/leak-check.sh --history

@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/test-harness"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Sites install better-auth pinned exactly (the version lives in the skill's
+      # docs and detect-site.sh). The harness pin moves only with that pin, in one
+      # pull request; CI's latest-in-range job already tests each new 1.7.x patch.
+      - dependency-name: "better-auth"
