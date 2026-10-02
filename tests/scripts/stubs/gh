@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Fake GitHub CLI for tests/scripts/run.sh. It never calls GitHub: every call
+# is logged to $GH_STUB_LOG and answered with canned data. With
+# STUB_FORBID_WRITES=1 a write verb is logged as WRITE-ATTEMPT and refused.
+#
+# Knobs (environment):
+#   GH_STUB_VISIBILITY   PRIVATE | PUBLIC | INTERNAL | none (default PRIVATE)
+set -euo pipefail
+
+ARGS="$*"
+[ -z "${GH_STUB_LOG:-}" ] || printf 'gh %s\n' "$ARGS" >> "$GH_STUB_LOG"
+
+is_write() {
+  case "$ARGS" in
+    "repo create"*|"repo edit"*|"repo delete"*|"repo rename"*|"repo archive"*|"secret"*|"variable"*|"release"*|"auth login"*|"auth logout"*) return 0 ;;
+    "api"*)
+      case "$ARGS" in *"-X POST"*|*"-X PATCH"*|*"-X PUT"*|*"-X DELETE"*|*"--method POST"*|*"--method PATCH"*|*"--method PUT"*|*"--method DELETE"*) return 0 ;; esac ;;
+  esac
+  return 1
+}
+if is_write; then
+  [ -z "${GH_STUB_LOG:-}" ] || printf 'WRITE-ATTEMPT gh %s\n' "$ARGS" >> "$GH_STUB_LOG"
+  if [ "${STUB_FORBID_WRITES:-0}" = 1 ]; then echo "gh stub: refused a write in a test" >&2; exit 97; fi
+  exit 0
+fi
+
+case "$ARGS" in
+  "repo view"*visibility*)
+    v="${GH_STUB_VISIBILITY:-PRIVATE}"
+    if [ "$v" = none ]; then echo "no git remotes found" >&2; exit 1; fi
+    case "$ARGS" in *"-q"*|*"--jq"*) printf '%s\n' "$v" ;; *) printf '{"visibility":"%s"}\n' "$v" ;; esac ;;
+  *) printf '\n' ;;
+esac
+exit 0

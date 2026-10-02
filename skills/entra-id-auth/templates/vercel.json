@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "crons": [
+    { "path": "/api/cron/credential-check", "schedule": "0 15 * * *" }
+  ],
+  "redirects": [
+    {
+      "source": "/((?!api/).*)",
+      "has": [{ "type": "host", "value": "__VERCEL_HOST__" }],
+      "destination": "https://__DOMAIN__/$1",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet, noimageindex" }
+      ]
+    }
+  ]
+}

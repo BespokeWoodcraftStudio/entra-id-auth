@@ -1,0 +1,24 @@
+# Exchange RBAC for Applications for __DISPLAY__.
+# Written by the entra-id-auth skill. Run by an Exchange administrator in
+# PowerShell 7 with the ExchangeOnlineManagement module, on Windows, macOS or
+# Linux (Install-Module ExchangeOnlineManagement). If the tenant's Conditional
+# Access refuses the sign-in from an unmanaged device (AADSTS53003), run it on
+# a compliant or registered device.
+# Read only, named mailboxes only. Nothing here grants a Graph permission.
+
+Connect-ExchangeOnline
+
+# 1. Exchange's own pointer to the app's enterprise app.
+New-ServicePrincipal -AppId "__READER_APP_ID__" -ObjectId "__READER_SP_ID__" -DisplayName "__DISPLAY__"
+
+# 2. The scope: these mailboxes and no others.
+New-ManagementScope -Name "__SITE__, named mailboxes only" -RecipientRestrictionFilter "__FILTER__"
+
+# 3. The role, inside that scope. Application Mail.Read reads; it cannot send, move or delete.
+New-ManagementRoleAssignment -Name "__SITE__, __EXCHANGE_ROLE__" -App "__READER_APP_ID__" -Role "__EXCHANGE_ROLE__" -CustomResourceScope "__SITE__, named mailboxes only"
+
+# 4. Proof. Record both lines. The first must say InScope True, the second InScope False.
+Test-ServicePrincipalAuthorization -Identity "__READER_APP_ID__" -Resource "__FIRST_MAILBOX__"
+Test-ServicePrincipalAuthorization -Identity "__READER_APP_ID__" -Resource (Get-Mailbox -ResultSize 50 | Where-Object { $_.PrimarySmtpAddress -ne "__FIRST_MAILBOX__" } | Select-Object -First 1).PrimarySmtpAddress
+
+Disconnect-ExchangeOnline -Confirm:$false

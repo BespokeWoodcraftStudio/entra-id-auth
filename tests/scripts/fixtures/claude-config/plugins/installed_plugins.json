@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "plugins": {
+    "entra-id-auth@entra-id-auth": [
+      {
+        "scope": "project",
+        "projectPath": "/srv/example/projects/portal",
+        "installPath": "/srv/example/.claude/plugins/cache/entra-id-auth/entra-id-auth/0.9.0",
+        "version": "0.9.0",
+        "installedAt": "2026-01-01T00:00:00.000Z",
+        "lastUpdated": "2026-01-01T00:00:00.000Z"
+      },
+      {
+        "scope": "user",
+        "installPath": "/srv/example/.claude/plugins/cache/entra-id-auth/entra-id-auth/1.0.6",
+        "version": "1.0.6",
+        "installedAt": "2026-01-02T00:00:00.000Z",
+        "lastUpdated": "2026-01-02T00:00:00.000Z"
+      }
+    ]
+  }
+}

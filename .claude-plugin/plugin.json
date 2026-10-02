@@ -1,0 +1,20 @@
+{
+  "name": "entra-id-auth",
+  "version": "1.0.7",
+  "description": "Adds Microsoft Entra ID (Microsoft 365) sign-in to a Next.js website on Vercel, end to end: the security groups, the app registrations and enterprise apps, consent, optional MFA, the Next.js and Better Auth code, the Vercel settings and a final control check. Every change is shown first and runs only on your yes.",
+  "author": {
+    "name": "BespokeWoodcraftStudio",
+    "url": "https://github.com/BespokeWoodcraftStudio"
+  },
+  "homepage": "https://github.com/BespokeWoodcraftStudio/entra-id-auth",
+  "repository": "https://github.com/BespokeWoodcraftStudio/entra-id-auth",
+  "license": "MIT",
+  "keywords": [
+    "entra-id",
+    "microsoft-365",
+    "better-auth",
+    "nextjs",
+    "vercel",
+    "authentication"
+  ]
+}

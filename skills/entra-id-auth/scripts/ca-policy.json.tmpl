@@ -1,0 +1,13 @@
+{
+  "displayName": "__APP_NAME__: require MFA",
+  "state": "enabledForReportingButNotEnforced",
+  "conditions": {
+    "applications": { "includeApplications": [__APP_IDS__] },
+    "users": { "includeGroups": [__GROUP_IDS__] },
+    "clientAppTypes": ["all"]
+  },
+  "grantControls": { "operator": "OR", "builtInControls": ["mfa"] },
+  "sessionControls": {
+    "signInFrequency": { "isEnabled": true, "type": "hours", "value": __SESSION_MAX_HOURS__, "frequencyInterval": "timeBased" }
+  }
+}

@@ -1,0 +1,10 @@
+# The scripts source lib.sh from their own folder: follow it, so a check of
+# one file sees what lib.sh defines (the same as shellcheck -x).
+external-sources=true
+source-path=SCRIPTDIR
+
+# SC2015 ("A && B || C is not if-then-else") is an info note that shellcheck 0.9
+# (the version on the CI runner) raises and newer versions do not raise here.
+# The scripts use `[ test ] && [ test ] || usage` and `... || die ...` on purpose:
+# the last command is a refusal that must run when any test fails.
+disable=SC2015

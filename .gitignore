@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.*
+!.env.example
+test-harness/.work/
+.DS_Store
+*.log
+docs/auth/
